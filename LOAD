@@ -1,0 +1,88 @@
+This program provides BASIC programs with access to the program loader (LOAD)
+by passing parameters via the system parameter area (SYSPARM).
+
+;BASLOAD.ASM	  
+;----------------------------------------------------------------------------
+;
+;Inputs:
+;  FILE SPEC 1	- A string (len <= 80) with the complete name, including
+;		  path, of the file to be loaded and executed.
+;		  Example: 'MAINMENU.EXE' or 'C:\FORMAT.COM'
+;  PARAMETER 1  - A string (len <= 80) with the command line parameters
+;		  to be passed to the program specified in FILE SPEC 1.
+;		  Example: '' or 'A:'
+;  FILE SPEC 2  - Same as 1.
+;  PARAMETER 2  - Same as 1.
+;
+;Outputs:
+;  This program gives control to LOAD.
+;----------------------------------------------------------------------------
+
+
+CODE		SEGMENT 'CODE'
+		ASSUME	CS:CODE
+
+
+		PUBLIC	BASLOAD		;make known to BASIC at link time
+BASLOAD		PROC	FAR
+
+	;prologue
+		PUSH	BP		;save BP
+		MOV	BP,SP		;set base for parm list
+		PUSH	DS		;DS -> basic work area
+		PUSH	ES		;ES -> basic work area
+		MOV	DX,'dk'		;interrupt verification switch
+		INT	77H		;get seg address of sysparm area in AX
+		MOV	ES,AX		;ES -> sysparm area
+		CLD			;set direction for all moves
+
+	;move file spec 1 to sysparm
+		MOV	BX,SS:[BP+12]	;get addr of string descriptor
+		MOV	CX,DS:[BX]	;get length of string into CX
+		MOV	SI,DS:[BX+2]	;get addr of string into SI
+		MOV	DI,0		;offset into sysparm
+		REP	MOVSB		;move string
+		MOV	BYTE PTR ES:[DI],0	;make it asciiz string
+
+	;move parameter 1 to sysparm
+		MOV	BX,SS:[BP+10]	;get addr of string descriptor
+		MOV	CX,DS:[BX]	;get length of string into CX
+		MOV	SI,DS:[BX+2]	;get addr of string into SI
+		MOV	DI,81		;offset into sysparm
+		INC	CL		;adjust for cr to be added at end
+		MOV	BYTE PTR ES:[DI],CL	;1st byte is length of string
+		DEC	CL		;re-adjust for move operation
+		INC	DI
+		REP	MOVSB		;move string
+		MOV	BYTE PTR ES:[DI],13	;add cr to end
+
+	;move file spec 2 to sysparm
+		MOV	BX,SS:[BP+8]	;get addr of string descriptor
+		MOV	CX,DS:[BX]	;get length of string into CX
+		MOV	SI,DS:[BX+2]	;get addr of string into SI
+		MOV	DI,163		;offset into sysparm
+		REP	MOVSB		;move string
+		MOV	BYTE PTR ES:[DI],0	;make it asciiz string
+
+	;move parameter 2 to sysparm
+		MOV	BX,SS:[BP+6]	;get addr of string descriptor
+		MOV	CX,DS:[BX]	;get length of string into CX
+		MOV	SI,DS:[BX+2]	;get addr of string into SI
+		MOV	DI,244		;offset into sysparm
+		INC	CL		;adjust for cr to be added at end
+		MOV	BYTE PTR ES:[DI],CL	;1st byte is length of string
+		DEC	CL		;re-adjust for move operation
+		INC	DI
+		REP	MOVSB		;move string
+		MOV	BYTE PTR ES:[DI],13	;add cr to end
+
+	;exit to BASIC
+		POP	ES
+		POP	DS
+		POP	BP
+		RET	8
+
+BASLOAD		ENDP
+
+CODE		ENDS
+		END	BASLOAD
